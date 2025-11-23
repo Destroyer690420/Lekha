@@ -458,16 +458,16 @@ export default function InvoicePrint() {
                 .tax-row { font-style: italic; font-weight: bold; font-size: 8pt; }
             `}</style>
 
-            <div className="no-print fixed top-0 left-0 right-0 bg-white shadow-md p-4 flex justify-between items-center z-50">
+            <div className="no-print fixed top-0 left-0 right-0 bg-card text-card-foreground border-b border-border p-4 flex justify-between items-center z-50">
                 <div className="font-bold text-lg">Invoice Preview</div>
                 <div className="flex gap-2">
-                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white px-4 py-2 rounded">
+                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded">
                         <Download size={16} /> Download PDF
                     </button>
                 </div>
             </div>
 
-            <div className="pt-20 bg-gray-100 min-h-screen flex flex-col items-center gap-8 pb-8">
+            <div className="pt-20 bg-muted min-h-screen flex flex-col items-center gap-8 pb-8">
                 <div ref={pdfRef}>
                     {renderInvoice(1)}
                     {renderInvoice(2)}

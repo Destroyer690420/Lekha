@@ -211,7 +211,7 @@ export default function PartyLedger() {
             </div>
 
             {/* PDF Container - Preview */}
-            <div className="flex justify-center bg-black p-8 overflow-auto">
+            <div className="flex justify-center bg-muted p-8 overflow-auto">
                 <div className="shadow-lg">
                     <div ref={pdfRef} className="p-4 text-xs font-sans text-black bg-white" style={{ width: '190mm', minHeight: '277mm' }}>
 

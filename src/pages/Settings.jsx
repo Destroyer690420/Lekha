@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Moon, Sun } from "lucide-react";
 
 export default function Settings() {
     const { currentUser } = useAuth();
@@ -28,6 +28,27 @@ export default function Settings() {
         ifsc: "",
         branch: "",
     });
+
+    // Theme state
+    const [theme, setTheme] = useState(() => {
+        const savedTheme = localStorage.getItem('theme');
+        return savedTheme || 'dark';
+    });
+
+    // Apply theme on mount and when theme changes
+    useEffect(() => {
+        const root = document.documentElement;
+        if (theme === 'light') {
+            root.classList.add('light');
+        } else {
+            root.classList.remove('light');
+        }
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+    };
 
     useEffect(() => {
         if (!currentUser) return;
@@ -76,8 +97,38 @@ export default function Settings() {
     if (fetchLoading) return <div className="p-8 text-center">Loading settings...</div>;
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold tracking-tight mb-6">Settings</h2>
+        <div className="max-w-4xl mx-auto space-y-6">
+            <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
+
+            {/* Theme Toggle Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Appearance</CardTitle>
+                    <CardDescription>Customize the look and feel of your application.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Theme</Label>
+                            <div className="text-sm text-muted-foreground">
+                                Switch between light and dark mode
+                            </div>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={toggleTheme}
+                            className="h-10 w-10"
+                        >
+                            {theme === 'dark' ? (
+                                <Sun className="h-5 w-5" />
+                            ) : (
+                                <Moon className="h-5 w-5" />
+                            )}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>
