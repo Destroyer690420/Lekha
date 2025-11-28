@@ -45,21 +45,23 @@ export default function Payments() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold tracking-tight">Payments Received</h2>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Payments Received</h2>
                 <Link to="/payments/new">
-                    <Button><Plus className="mr-2 h-4 w-4" /> New Payment Entry</Button>
+                    <Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> New Payment Entry</Button>
                 </Link>
             </div>
 
-            <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-slate-500" />
-                <Input
-                    placeholder="Search by party or reference..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                />
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                    <Input
+                        placeholder="Search by party or reference..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
             </div>
 
             <div className="rounded-md border overflow-hidden">

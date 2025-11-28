@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Search, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, FileSpreadsheet, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -212,44 +212,43 @@ export default function Parties() {
                 </div>
 
                 {/* Mobile View (Cards) */}
-                <div className="md:hidden space-y-4 p-4 bg-muted/20">
+                <div className="grid grid-cols-1 gap-4 md:hidden">
                     {loading ? (
                         <div className="text-center py-4">Loading...</div>
                     ) : filteredParties.length === 0 ? (
                         <div className="text-center py-4 text-muted-foreground">No parties found</div>
                     ) : (
                         filteredParties.map((party) => (
-                            <div key={party.id} className="bg-card border rounded-lg p-4 shadow-sm space-y-3">
+                            <div key={party.id} className="bg-card border rounded-lg p-4 shadow-sm">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <div className="font-bold text-lg">{party.name}</div>
-                                        <div className="text-sm text-muted-foreground capitalize">{party.type}</div>
+                                        <div className="text-base font-bold text-foreground">{party.name}</div>
+                                        <div className="text-xs text-muted-foreground mt-1">{party.gstin || "No GSTIN"}</div>
                                     </div>
-                                    {party.gstin && (
-                                        <div className="text-xs bg-muted px-2 py-1 rounded">
-                                            {party.gstin}
-                                        </div>
-                                    )}
+                                    <div className="text-right">
+                                        <div className="text-sm font-medium text-muted-foreground capitalize">{party.type}</div>
+                                        <div className="text-xs text-muted-foreground mt-1">{party.state}</div>
+                                    </div>
                                 </div>
 
-                                <div className="text-sm border-t pt-2 mt-2">
-                                    <div className="text-muted-foreground">{party.state}</div>
-                                    <div className="text-muted-foreground truncate">{party.address}</div>
+                                <div className="mt-3">
+                                    <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Address</div>
+                                    <div className="text-sm text-foreground line-clamp-2">{party.address}</div>
                                 </div>
 
-                                <div className="flex justify-end gap-2 pt-2 border-t mt-2">
-                                    <Link to={`/parties/${party.id}/ledger`}>
-                                        <Button variant="outline" size="sm" className="h-8">
-                                            <FileSpreadsheet className="h-3 w-3 mr-2" />
+                                <div className="flex items-center gap-3 mt-4 pt-4 border-t">
+                                    <Link to={`/parties/${party.id}/ledger`} className="flex-1">
+                                        <Button variant="outline" className="w-full">
+                                            <FileText className="h-4 w-4 mr-2" />
                                             Ledger
                                         </Button>
                                     </Link>
-                                    <Button variant="outline" size="sm" className="h-8" onClick={() => handleEdit(party)}>
-                                        <Pencil className="h-3 w-3 mr-2" />
+                                    <Button variant="outline" className="flex-1" onClick={() => handleEdit(party)}>
+                                        <Pencil className="h-4 w-4 mr-2" />
                                         Edit
                                     </Button>
-                                    <Button variant="outline" size="sm" className="h-8 text-red-500 hover:text-red-600" onClick={() => handleDelete(party.id)}>
-                                        <Trash2 className="h-3 w-3" />
+                                    <Button variant="outline" size="icon" className="h-10 w-10 text-destructive hover:text-destructive" onClick={() => handleDelete(party.id)}>
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
