@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, getDoc, getDocs, query, orderBy, updateDoc } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,27 +45,15 @@ export default function InvoiceForm() {
         }
     });
 
-    // Use standard React state for items instead of useFieldArray
-    const [items, setItems] = useState([{ description: "", hsnCode: "", qty: 1, rate: 0, per: "Pcs" }]);
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "items"
+    });
 
-    // Handler for item field changes
-    const handleItemChange = (index, field, value) => {
-        const newItems = [...items];
-        newItems[index] = { ...newItems[index], [field]: value };
-        setItems(newItems);
-    };
-
-    // Add new item
-    const addItem = () => {
-        setItems([...items, { description: "", hsnCode: "", qty: 1, rate: 0, per: "Pcs" }]);
-    };
-
-    // Remove item
-    const removeItem = (index) => {
-        if (items.length > 1) {
-            setItems(items.filter((_, i) => i !== index));
-        }
-    };
+    const watchItems = useWatch({
+        control,
+        name: "items",
+    });
 
     // Fetch Parties and Products
     useEffect(() => {
@@ -89,12 +77,6 @@ export default function InvoiceForm() {
         if (!currentUser || id) return; // Don't auto-generate when editing
 
         const generateInvoiceNumber = async () => {
-            // Fetch user profile to get the prefix
-            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-            const companyProfile = userDoc.data()?.companyProfile || {};
-            const prefixCode = companyProfile.invoicePrefix || "INV";
-            const prefix = `${prefixCode}/2025-26/`;
-
             // Fetch all Tax Invoices to find the last number
             const invoicesSnap = await getDocs(collection(db, "users", currentUser.uid, "invoices"));
             const invoices = invoicesSnap.docs.map(d => d.data());
@@ -103,35 +85,13 @@ export default function InvoiceForm() {
             const taxInvoices = invoices.filter(inv => inv.documentType === "Tax Invoice");
 
             let nextNumber = 1;
+            const prefix = "NFI/2025-26/";
 
             // Extract numbers from existing tax invoices
             const numbers = taxInvoices
                 .map(inv => {
-                    // Dynamic regex based on the prefix
-                    // We need to escape special characters in prefix if any, but assuming simple alphanumeric for now
-                    // Actually, we should be careful. Let's just look for the pattern "PREFIX/2025-26/NUMBER"
-                    // But wait, if the user CHANGED the prefix, we might want to continue the sequence from the OLD prefix?
-                    // Or start a new sequence for the new prefix?
-                    // Usually, changing prefix means starting a new series or continuing. 
-                    // Requirement says: "If I set the prefix to "TATA" ... next generated invoice should be TATA/2025-26/36"
-                    // This implies continuing the count? Or just finding the max number of THAT prefix?
-                    // "If I set it to BILL, it should be BILL/2025-26/36" -> This implies the number 36 is global?
-                    // Or maybe 36 was just an example number.
-                    // Let's assume we want to find the max number across ALL tax invoices for the current financial year, regardless of prefix?
-                    // OR, more likely, we find the max number for THIS prefix.
-                    // If I change prefix, I probably want to start from 1 or continue.
-                    // Let's stick to: Find max number matching the CURRENT prefix pattern.
-                    // If the user wants to continue the number from a previous prefix, they might need to manually set the first one or we'd need more complex logic.
-                    // Given the requirement "Fallback: ... default to INV", let's assume we just look for the configured prefix.
-
-                    if (!inv.invoiceNo) return 0;
-
-                    // Check if invoice number starts with the prefix
-                    if (inv.invoiceNo.startsWith(prefix)) {
-                        const part = inv.invoiceNo.replace(prefix, "");
-                        return parseInt(part) || 0;
-                    }
-                    return 0;
+                    const match = inv.invoiceNo?.match(/NFI\/2025-26\/(\d+)/);
+                    return match ? parseInt(match[1]) : 0;
                 })
                 .filter(n => n > 0);
 
@@ -156,14 +116,8 @@ export default function InvoiceForm() {
                 const data = docSnap.data();
                 // Reset form with data
                 Object.keys(data).forEach(key => {
-                    if (key !== 'items') { // Skip items, we'll handle separately
-                        setValue(key, data[key]);
-                    }
+                    setValue(key, data[key]);
                 });
-                // Load items into state
-                if (data.items && data.items.length > 0) {
-                    setItems(data.items);
-                }
             }
         };
 
@@ -200,7 +154,7 @@ export default function InvoiceForm() {
         return { subTotal, totalQty };
     };
 
-    const { subTotal, totalQty } = calculateTotals(items || []);
+    const { subTotal, totalQty } = calculateTotals(watchItems || []);
     const freightCharges = parseFloat(watch("freightCharges") || 0);
     const taxableValue = subTotal + freightCharges;
 
@@ -228,7 +182,6 @@ export default function InvoiceForm() {
 
             const invoiceData = {
                 ...data,
-                items, // Add items from state
                 buyerDetails, // Snapshot
                 consigneeDetails, // Snapshot
                 subTotal,
@@ -277,15 +230,10 @@ export default function InvoiceForm() {
 
     // Handle product selection from suggestions
     const handleProductSelect = (index, product) => {
-        const newItems = [...items];
-        newItems[index] = {
-            ...newItems[index],
-            description: product.name + (product.description ? `\n${product.description}` : ""),
-            hsnCode: product.hsnCode,
-            rate: product.defaultRate,
-            per: product.unit
-        };
-        setItems(newItems);
+        setValue(`items.${index}.description`, product.name + (product.description ? `\n${product.description}` : ""));
+        setValue(`items.${index}.hsnCode`, product.hsnCode);
+        setValue(`items.${index}.rate`, product.defaultRate);
+        setValue(`items.${index}.per`, product.unit);
         setProductSearch(prev => ({ ...prev, [index]: product.name }));
         setShowSuggestions(prev => ({ ...prev, [index]: false }));
     };
@@ -361,10 +309,10 @@ export default function InvoiceForm() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {items.map((item, index) => (
-                                        <TableRow key={index}>
+                                    {fields.map((field, index) => (
+                                        <TableRow key={field.id}>
                                             <TableCell>
-                                                <div className="mb-2">
+                                                <div className="relative mb-2">
                                                     <Input
                                                         placeholder="Search product..."
                                                         value={productSearch[index] || ""}
@@ -380,7 +328,6 @@ export default function InvoiceForm() {
                                                             }, 200);
                                                         }}
                                                         className="w-full"
-                                                        style={{ pointerEvents: 'auto' }}
                                                     />
                                                     {showSuggestions[index] && getFilteredProducts(index).length > 0 && (
                                                         <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-auto">
@@ -399,55 +346,17 @@ export default function InvoiceForm() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <Textarea
-                                                    value={item.description}
-                                                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                                                    placeholder="Description"
-                                                    className="min-h-[60px]"
-                                                    style={{ pointerEvents: 'auto' }}
-                                                />
+                                                <Textarea {...register(`items.${index}.description`)} placeholder="Description" className="min-h-[60px]" />
+                                            </TableCell>
+                                            <TableCell><Input {...register(`items.${index}.hsnCode`)} className="w-20" /></TableCell>
+                                            <TableCell><Input type="number" {...register(`items.${index}.qty`)} className="w-20" /></TableCell>
+                                            <TableCell><Input type="number" {...register(`items.${index}.rate`)} className="w-24" /></TableCell>
+                                            <TableCell><Input {...register(`items.${index}.per`)} className="w-16" /></TableCell>
+                                            <TableCell>
+                                                {((parseFloat(watchItems[index]?.qty || 0) * parseFloat(watchItems[index]?.rate || 0))).toFixed(2)}
                                             </TableCell>
                                             <TableCell>
-                                                <Input
-                                                    value={item.hsnCode}
-                                                    onChange={(e) => handleItemChange(index, 'hsnCode', e.target.value)}
-                                                    className="w-20"
-                                                    style={{ pointerEvents: 'auto' }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input
-                                                    type="number"
-                                                    value={item.qty}
-                                                    onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
-                                                    className="w-20"
-                                                    style={{ pointerEvents: 'auto' }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input
-                                                    type="number"
-                                                    value={item.rate}
-                                                    onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                                                    className="w-24"
-                                                    style={{ pointerEvents: 'auto' }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Input
-                                                    value={item.per}
-                                                    onChange={(e) => handleItemChange(index, 'per', e.target.value)}
-                                                    className="w-16"
-                                                    style={{ pointerEvents: 'auto' }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                {((parseFloat(item.qty || 0) * parseFloat(item.rate || 0))).toFixed(2)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
-                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -457,11 +366,11 @@ export default function InvoiceForm() {
 
                         {/* Mobile Card View */}
                         <div className="md:hidden space-y-6">
-                            {items.map((item, index) => (
-                                <div key={index} className="bg-muted/30 p-4 rounded-lg border space-y-4">
+                            {fields.map((field, index) => (
+                                <div key={field.id} className="bg-muted/30 p-4 rounded-lg border space-y-4">
                                     <div className="flex justify-between items-center">
                                         <h4 className="font-medium text-sm text-muted-foreground">Item #{index + 1}</h4>
-                                        <Button variant="ghost" size="sm" onClick={() => removeItem(index)} className="h-8 w-8 p-0 text-red-500">
+                                        <Button variant="ghost" size="sm" onClick={() => remove(index)} className="h-8 w-8 p-0 text-red-500">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -506,54 +415,33 @@ export default function InvoiceForm() {
 
                                         <div className="space-y-2">
                                             <Label>Description</Label>
-                                            <Textarea
-                                                value={item.description}
-                                                onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                                                placeholder="Item description"
-                                                className="min-h-[80px]"
-                                            />
+                                            <Textarea {...register(`items.${index}.description`)} placeholder="Item description" className="min-h-[80px]" />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label>HSN Code</Label>
-                                                <Input
-                                                    value={item.hsnCode}
-                                                    onChange={(e) => handleItemChange(index, 'hsnCode', e.target.value)}
-                                                    placeholder="HSN"
-                                                />
+                                                <Input {...register(`items.${index}.hsnCode`)} placeholder="HSN" />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Unit</Label>
-                                                <Input
-                                                    value={item.per}
-                                                    onChange={(e) => handleItemChange(index, 'per', e.target.value)}
-                                                    placeholder="Pcs, Kg..."
-                                                />
+                                                <Input {...register(`items.${index}.per`)} placeholder="Pcs, Kg..." />
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="space-y-2">
                                                 <Label>Qty</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={item.qty}
-                                                    onChange={(e) => handleItemChange(index, 'qty', e.target.value)}
-                                                />
+                                                <Input type="number" {...register(`items.${index}.qty`)} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Rate</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={item.rate}
-                                                    onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                                                />
+                                                <Input type="number" {...register(`items.${index}.rate`)} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Amount</Label>
                                                 <div className="flex items-center h-10 px-3 border rounded-md bg-muted/50 font-medium">
-                                                    {((parseFloat(item.qty || 0) * parseFloat(item.rate || 0))).toFixed(2)}
+                                                    {((parseFloat(watchItems[index]?.qty || 0) * parseFloat(watchItems[index]?.rate || 0))).toFixed(2)}
                                                 </div>
                                             </div>
                                         </div>
@@ -562,7 +450,7 @@ export default function InvoiceForm() {
                             ))}
                         </div>
 
-                        <Button type="button" variant="outline" className="w-full md:w-auto mt-4" onClick={addItem}>
+                        <Button type="button" variant="outline" className="w-full md:w-auto mt-4" onClick={() => append({ description: "", hsnCode: "", qty: 1, rate: 0, per: "Pcs", amount: 0 })}>
                             <Plus className="mr-2 h-4 w-4" /> Add Item
                         </Button>
                     </CardContent>

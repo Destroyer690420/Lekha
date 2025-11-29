@@ -13,8 +13,6 @@ export default function InvoicePrint() {
     const { currentUser } = useAuth();
     const [invoice, setInvoice] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [scale, setScale] = useState(1);
-    const [containerHeight, setContainerHeight] = useState('auto');
     const pdfRef = useRef();
 
     useEffect(() => {
@@ -34,43 +32,6 @@ export default function InvoicePrint() {
             document.title = invoice.invoiceNo; // Set title for print filename
         }
     }, [loading, invoice]);
-
-    useEffect(() => {
-        const handleResize = () => {
-            if (!pdfRef.current) return;
-
-            const width = window.innerWidth;
-            if (width < 800) {
-                const newScale = (width - 32) / 794; // 32px padding (16px each side)
-                setScale(newScale);
-
-                // Measure original height (transform doesn't affect layout flow usually, but let's be safe)
-                // We assume the content renders at full size initially or we can calculate based on known A4 ratio if fixed
-                // But it's dynamic. 
-                // The element is 210mm wide.
-                const originalHeight = pdfRef.current.getBoundingClientRect().height / scale;
-                // Wait, if it's already scaled, getBoundingClientRect returns scaled dimensions.
-                // So dividing by current scale should give original height? 
-                // Actually, simpler: just use scrollHeight if overflow is visible, or offsetHeight.
-                // But transform scale DOES NOT change offsetHeight/scrollHeight in the flow usually?
-                // Actually it does NOT change layout size, so offsetHeight should be the ORIGINAL size.
-
-                setContainerHeight(`${pdfRef.current.offsetHeight * newScale}px`);
-            } else {
-                setScale(1);
-                setContainerHeight('auto');
-            }
-        };
-
-        // Small delay to ensure render
-        const timer = setTimeout(handleResize, 100);
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            clearTimeout(timer);
-        };
-    }, [invoice, loading]); // Recalculate when content changes
 
 
 
@@ -931,40 +892,27 @@ export default function InvoicePrint() {
                 .tax-row { font-style: italic; font-weight: bold; font-size: 8pt; }
             `}</style>
 
-            <div className="no-print fixed top-0 left-0 right-0 bg-card text-card-foreground border-b border-border p-4 flex flex-col sm:flex-row justify-between items-center gap-4 z-50 shadow-sm">
+            <div className="no-print fixed top-0 left-0 right-0 bg-card text-card-foreground border-b border-border p-4 flex justify-between items-center z-50">
                 <div className="font-bold text-lg">{isQuotation ? "Quotation Preview" : "Invoice Preview"}</div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                    <button onClick={handleDownloadPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded shadow-sm">
+                <div className="flex gap-2">
+                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded">
                         <Download size={16} /> Download PDF
                     </button>
                 </div>
             </div>
 
-            <div className="pt-32 sm:pt-20 bg-muted min-h-screen flex flex-col items-center gap-8 pb-8 w-full overflow-hidden">
-                <div
-                    className="w-full px-0 sm:px-4 flex justify-center transition-all duration-300 ease-out"
-                    style={{ height: containerHeight }}
-                >
-                    <div
-                        ref={pdfRef}
-                        style={{
-                            minWidth: '210mm',
-                            transform: `scale(${scale})`,
-                            transformOrigin: 'top center'
-                        }}
-                        className="bg-white shadow-lg"
-                    >
-                        {isQuotation ? (
-                            // Single page for Quotations/Proforma Invoices
-                            renderQuotation()
-                        ) : (
-                            // Two copies for Tax Invoices
-                            <>
-                                {renderInvoice(1)}
-                                {renderInvoice(2)}
-                            </>
-                        )}
-                    </div>
+            <div className="pt-20 bg-muted min-h-screen flex flex-col items-center gap-8 pb-8">
+                <div ref={pdfRef}>
+                    {isQuotation ? (
+                        // Single page for Quotations/Proforma Invoices
+                        renderQuotation()
+                    ) : (
+                        // Two copies for Tax Invoices
+                        <>
+                            {renderInvoice(1)}
+                            {renderInvoice(2)}
+                        </>
+                    )}
                 </div>
             </div>
         </div >
